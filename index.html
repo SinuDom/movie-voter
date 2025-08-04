@@ -27,7 +27,7 @@
             background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
             color: var(--light);
             min-height: 100vh;
-            overflow: hidden; /* Prevent scrollbars during transitions */
+            overflow-x: hidden; /* Prevent horizontal scroll, allow vertical */
         }
         
         /* Glow Effect */
@@ -48,12 +48,13 @@
         .screen {
             position: absolute;
             width: 100%;
-            height: 100vh;
+            min-height: 100vh; /* Allow screen to grow vertically if content is tall */
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: center; /* Center content vertically */
             padding: 2rem;
+            padding-bottom: 5rem; /* Add extra padding at the bottom for scroll room */
             opacity: 0;
             pointer-events: none;
             visibility: hidden;
@@ -92,6 +93,7 @@
         /* Headings */
         h1 {
             font-size: 3.5rem;
+            text-align: center;
             margin-bottom: 1.5rem;
             background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
             -webkit-background-clip: text;
@@ -317,6 +319,7 @@
             opacity: 0;
             transform: translateY(30px) rotateX(20deg);
             border: 3px solid transparent;
+            cursor: pointer;
         }
         
         .movie-option.show {
@@ -353,7 +356,7 @@
             box-shadow: 0 25px 50px rgba(157, 77, 255, 0.5);
         }
 
-        .movie-option.selected-for-voting {
+        .movie-option.selected-for-voting, .movie-option.tiebreaker-selected {
             border-color: var(--success);
             transform: scale(1.05);
             box-shadow: 0 0 25px var(--success);
@@ -362,6 +365,7 @@
         .movie-option.voted-on {
             opacity: 0.6;
             filter: grayscale(80%);
+            pointer-events: none;
         }
 
         /* Point Selection Overlay */
@@ -396,9 +400,14 @@
             font-size: 20vw;
             font-weight: 800;
             color: white;
+            cursor: pointer;
             transition: all 0.3s ease;
             opacity: 1;
         }
+        .point-choice:hover {
+            opacity: 0.8;
+        }
+
         .point-choice.hidden {
             opacity: 0.2;
             pointer-events: none;
@@ -426,6 +435,7 @@
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             overflow: hidden;
             z-index: 1;
+            flex-shrink: 0; /* Prevent buttons from shrinking */
         }
         
         .btn::before {
@@ -556,6 +566,13 @@
             font-weight: 600;
             color: var(--success);
         }
+
+        .tiebreaker-points {
+            font-size: 1rem;
+            font-weight: 400;
+            color: var(--primary);
+            margin-left: 8px;
+        }
         
         /* Confetti */
         .confetti {
@@ -579,7 +596,9 @@
             }
         }
         
-        /* Responsive */
+        /* =========================================== */
+        /* === MOBILE RESPONSIVE & PHONE LAYOUT ====== */
+        /* =========================================== */
         @media (max-width: 768px) {
             h1 {
                 font-size: 2.5rem;
@@ -589,6 +608,10 @@
                 width: 60px;
                 height: 60px;
                 font-size: 1.5rem;
+            }
+
+            .movie-options {
+                gap: 1rem;
             }
             
             .movie-option {
@@ -614,6 +637,9 @@
             }
             .search-result-img {
                 height: 150px;
+            }
+            #voting-screen p, #tiebreaker-screen p {
+                display: none; /* Hide "use number keys" on mobile */
             }
         }
     </style>
@@ -654,7 +680,7 @@
     <div class="screen" id="voting-screen">
         <h1>Cast Your Vote</h1>
         <div class="current-voter">Player 1's Turn</div>
-        <p>Use number keys to select a movie</p>
+        <p>Use number keys or click to select a movie</p>
         <div class="movie-options" id="movie-options-container"></div>
         <div id="voting-progress" style="color: rgba(255,255,255,0.7);">0 of 0 votes</div>
     </div>
@@ -665,7 +691,7 @@
     </div>
 
     <div class="screen" id="winner-screen">
-        <h1>And The Winner Is...</h1>
+        <h1 id="winner-heading">And The Winner Is...</h1>
         <div class="winner-image-container" id="winner-container">
             <img class="winner-image" id="winner-image" src="" alt="Winner">
             <div class="winner-overlay">
@@ -680,6 +706,13 @@
         <h1>Final Results</h1>
         <div id="results-list"></div>
         <button class="btn" id="restart-btn"><i class="fas fa-redo"></i> Play Again</button>
+    </div>
+
+    <div class="screen" id="tiebreaker-screen">
+        <h1>Tiebreaker Round!</h1>
+        <div class="current-voter" id="tiebreaker-voter">Player 1's Turn</div>
+        <p>Click one movie to break the tie.</p>
+        <div class="movie-options" id="tiebreaker-options-container"></div>
     </div>
 
 
@@ -698,24 +731,35 @@
         const votingScreen = document.getElementById('voting-screen');
         const winnerScreen = document.getElementById('winner-screen');
         const resultsScreen = document.getElementById('results-screen');
+        const tiebreakerScreen = document.getElementById('tiebreaker-screen');
+
         const imagePreview = document.getElementById('image-preview');
         const previewTitle = document.getElementById('preview-title');
         const movieOptionsContainer = document.getElementById('movie-options-container');
         const winnerImage = document.getElementById('winner-image');
         const winnerContainer = document.getElementById('winner-container');
+        const winnerHeading = document.getElementById('winner-heading');
         const resultsList = document.getElementById('results-list');
+        
         const continueBtn = document.getElementById('continue-btn');
         const doneBtn = document.getElementById('done-btn');
         const restartBtn = document.getElementById('restart-btn');
         const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
-        const currentVoterDisplay = document.querySelector('.current-voter');
+        
+        const currentVoterDisplay = document.querySelector('#voting-screen .current-voter');
         const votingProgressDisplay = document.getElementById('voting-progress');
         const pointSelectionOverlay = document.getElementById('point-selection-overlay');
+        const pointChoice1 = document.getElementById('point-choice-1');
+        const pointChoice2 = document.getElementById('point-choice-2');
         
         // Search Elements
         const searchInput = document.getElementById('search-input');
         const searchBtn = document.getElementById('search-btn');
         const searchResultsContainer = document.getElementById('search-results');
+
+        // Tiebreaker Elements
+        const tiebreakerVoterDisplay = document.getElementById('tiebreaker-voter');
+        const tiebreakerOptionsContainer = document.getElementById('tiebreaker-options-container');
 
         // State
         let images = []; // Stores the SELECTED images for the vote
@@ -730,6 +774,11 @@
         let selectedMovieForVoting = null;
         let pointsAllocatedThisTurn = [];
 
+        // Tiebreaker state
+        let tiedMovies = [];
+        let tiebreakerPoints = {};
+        let tiebreakerVoter = 1;
+        
         // --- Screen Transition Function ---
         function transitionTo(toScreen, animationOut = 'slide-out', animationIn = 'slide-in') {
             const fromScreen = document.querySelector('.screen.active');
@@ -748,15 +797,23 @@
         }
 
 
-        // Initialize animations
-        document.addEventListener('DOMContentLoaded', () => {
+        // Initialize App
+        function init() {
+            // Add mouse/touch controls for point selection
+            pointChoice1.addEventListener('click', () => handlePointSelection(1));
+            pointChoice2.addEventListener('click', () => handlePointSelection(2));
+
+            // Add keyboard controls
+            document.addEventListener('keydown', handleVotingKeyDown);
+            
+            // Animate player options on load
             const playerOptions = document.querySelectorAll('.player-option');
             playerOptions.forEach((option, index) => {
                 setTimeout(() => {
                     option.classList.add('show');
                 }, index * 100);
             });
-        });
+        }
         
         // Player count selection
         document.querySelectorAll('.player-option').forEach(option => {
@@ -786,7 +843,7 @@
             const query = searchInput.value.trim();
             if (!query) return;
 
-            if (API_KEY === 'PASTE_YOUR_API_KEY_HERE' || SEARCH_ENGINE_ID === 'PASTE_YOUR_SEARCH_ENGINE_ID_HERE') {
+            if (API_KEY === 'YOUR_API_KEY' || SEARCH_ENGINE_ID === 'YOUR_SEARCH_ENGINE_ID') {
                 searchResultsContainer.innerHTML = `<h3 style="color: var(--primary);">Please paste your API Key and Search Engine ID at the top of the script.</h3>`;
                 return;
             }
@@ -797,10 +854,10 @@
             const params = new URLSearchParams({
                 key: API_KEY,
                 cx: SEARCH_ENGINE_ID,
-                q: query,
+                q: query + " movie poster",
                 searchType: 'image',
-                imgSize: 'large', // Request large images for better quality
-                num: 10 // API returns a max of 10 results per page
+                imgSize: 'large', 
+                num: 10
             });
 
             try {
@@ -811,7 +868,6 @@
                 }
                 const data = await response.json();
                 
-                // The image URLs are in the 'items' array, in the 'link' property
                 const imageUrls = data.items ? data.items.map(item => item.link) : [];
                 
                 displaySearchResults(imageUrls);
@@ -835,30 +891,23 @@
                 img.classList.add('search-result-img');
                 img.alt = 'Search result';
 
-                // If this image is already selected, mark it visually
                 if (images.includes(url)) {
                     img.classList.add('selected');
                 }
                 
-                // Add click listener to select/deselect the image
                 img.addEventListener('click', () => {
                     const urlIndex = images.indexOf(url);
                     if (urlIndex > -1) {
-                        // Image is already selected, so deselect it
                         images.splice(urlIndex, 1);
                         img.classList.remove('selected');
                     } else {
-                        // Image is not selected, so add it
                         images.push(url);
                         img.classList.add('selected');
                     }
                     updateImagePreview();
                 });
                 
-                // Handle images that fail to load from the source URL
-                img.onerror = () => {
-                    img.style.display = 'none';
-                };
+                img.onerror = () => { img.style.display = 'none'; };
                 
                 searchResultsContainer.appendChild(img);
             });
@@ -872,11 +921,9 @@
                 imgElement.classList.add('preview-image');
                 imgElement.alt = `Option ${index + 1}`;
                 imagePreview.appendChild(imgElement);
-                // Add staggered animation
                 setTimeout(() => imgElement.classList.add('show'), index * 50);
             });
             
-            // Show/hide the "Done" button and preview title
             if (images.length >= 2) {
                 doneBtn.classList.remove('disabled');
                 previewTitle.style.display = 'block';
@@ -886,7 +933,6 @@
             }
         }
         
-        // Done button handler
         doneBtn.addEventListener('click', () => {
             if (images.length >= 2) {
                 startVoting();
@@ -895,12 +941,9 @@
         
         function startVoting() {
             transitionTo(votingScreen, 'zoom-out', 'zoom-in');
-            
             currentPlayer = 1;
             votes = [];
-            
             setupNewTurn();
-            document.addEventListener('keydown', handleVotingKeyDown);
         }
         
         function setupNewTurn() {
@@ -920,12 +963,23 @@
                     <img src="${img}" alt="Option ${index + 1}" onerror="this.src='https://via.placeholder.com/200x300?text=Image+Error'">
                     <div class="option-number">${index + 1}</div>
                 `;
+
+                // Add click listener for mouse/touch control
+                option.addEventListener('click', () => {
+                    if (!option.classList.contains('voted-on')) {
+                        handleMovieSelection(index);
+                    }
+                });
+
                 movieOptionsContainer.appendChild(option);
                 setTimeout(() => option.classList.add('show'), index * 150);
             });
         }
 
         function handleVotingKeyDown(e) {
+            // Ensure we are on the voting screen and not in an input field
+            if (!votingScreen.classList.contains('active') || document.activeElement.tagName === 'INPUT') return;
+
             const key = e.key;
             
             if (votingPhase === 'selecting_movie') {
@@ -938,61 +992,97 @@
                 }
             } else if (votingPhase === 'selecting_points') {
                 const points = parseInt(key);
-                if ((points === 1 || points === 2) && !pointsAllocatedThisTurn.includes(points)) {
-                    handlePointSelection(points);
+                if (points === 1 || points === 2) {
+                   handlePointSelection(points);
                 }
             }
         }
         
+        // --- START: CORRECTED VOTING LOGIC ---
         function handleMovieSelection(movieIndex) {
+            if (votingPhase !== 'selecting_movie') return;
+
             selectedMovieForVoting = movieIndex;
             const remainingPoints = [1, 2].filter(p => !pointsAllocatedThisTurn.includes(p));
-            
-            if (remainingPoints.length === 1) {
-                handlePointSelection(remainingPoints[0]);
-                return;
-            }
 
-            votingPhase = 'selecting_points';
-            document.querySelector(`.movie-option[data-index='${movieIndex}']`).classList.add('selected-for-voting');
-            document.getElementById('point-choice-1').classList.toggle('hidden', pointsAllocatedThisTurn.includes(1));
-            document.getElementById('point-choice-2').classList.toggle('hidden', pointsAllocatedThisTurn.includes(2));
-            pointSelectionOverlay.classList.add('visible');
+            if (remainingPoints.length === 1) {
+                // This is the SECOND vote. Assign the remaining point value automatically.
+                const points = remainingPoints[0];
+                
+                votes.push({ player: currentPlayer, movieIndex: selectedMovieForVoting, points: points });
+                pointsAllocatedThisTurn.push(points);
+
+                const votedCard = document.querySelector(`.movie-option[data-index='${selectedMovieForVoting}']`);
+                votedCard.classList.add('voted-on');
+
+                selectedMovieForVoting = null;
+
+                if (pointsAllocatedThisTurn.length === 2) {
+                    setTimeout(advanceTurn, 500);
+                }
+            } else {
+                // This is the FIRST vote. Show the point selection overlay.
+                votingPhase = 'selecting_points';
+                document.querySelector(`.movie-option[data-index='${movieIndex}']`).classList.add('selected-for-voting');
+                
+                pointChoice1.classList.toggle('hidden', pointsAllocatedThisTurn.includes(1));
+                pointChoice2.classList.toggle('hidden', pointsAllocatedThisTurn.includes(2));
+                pointSelectionOverlay.classList.add('visible');
+            }
         }
 
         function handlePointSelection(points) {
+            // This function now only handles the FIRST vote from the overlay.
+            if (pointsAllocatedThisTurn.includes(points) || votingPhase !== 'selecting_points') return;
+            
             votes.push({ player: currentPlayer, movieIndex: selectedMovieForVoting, points: points });
             pointsAllocatedThisTurn.push(points);
+            
             pointSelectionOverlay.classList.remove('visible');
             const votedCard = document.querySelector(`.movie-option[data-index='${selectedMovieForVoting}']`);
             votedCard.classList.remove('selected-for-voting');
             votedCard.classList.add('voted-on');
-            selectedMovieForVoting = null;
-            votingPhase = 'selecting_movie';
             
-            if (pointsAllocatedThisTurn.length === 2) {
-                setTimeout(advanceTurn, 500);
-            }
+            selectedMovieForVoting = null;
+            // Set phase back to movie selection for the second choice.
+            votingPhase = 'selecting_movie';
         }
+        // --- END: CORRECTED VOTING LOGIC ---
 
         function advanceTurn() {
             currentPlayer++;
             if (currentPlayer > totalPlayers) {
-                document.removeEventListener('keydown', handleVotingKeyDown);
-                setTimeout(showWinner, 500);
+                setTimeout(finishVoting, 500);
             } else {
                 setupNewTurn();
             }
         }
         
-        function showWinner() {
+        function finishVoting() {
+            calculateScores();
+            
+            const sortedScores = Object.entries(finalScores)
+                .map(([index, points]) => ({ index: parseInt(index), points }))
+                .sort((a, b) => b.points - a.points);
+            
+            if (sortedScores.length === 0) return; // No scores to process
+
+            const topScore = sortedScores[0].points;
+            const potentialTies = sortedScores.filter(movie => movie.points === topScore);
+
+            if (potentialTies.length > 1) {
+                // FORCED TIEBREAKER
+                tiedMovies = potentialTies;
+                startTiebreaker();
+            } else {
+                // We have a clear winner
+                showWinner(sortedScores[0].index);
+            }
+        }
+        
+        function showWinner(winnerIndex, wasTiebreaker = false) {
+            winnerHeading.textContent = wasTiebreaker ? 'The Tiebreaker Winner Is...' : 'And The Winner Is...';
             transitionTo(winnerScreen, 'zoom-out', 'zoom-in');
-            
-            finalScores = {};
-            images.forEach((_, index) => { finalScores[index] = 0; });
-            votes.forEach(vote => { finalScores[vote.movieIndex] += vote.points; });
-            
-            let winnerIndex = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
             
             winnerImage.src = images[winnerIndex];
             
@@ -1002,29 +1092,108 @@
             }, 500);
         }
 
+        function calculateScores() {
+            finalScores = {};
+            images.forEach((_, index) => { finalScores[index] = 0; });
+            votes.forEach(vote => { finalScores[vote.movieIndex] += vote.points; });
+        }
+
         viewLeaderboardBtn.addEventListener('click', displayLeaderboard);
 
         function displayLeaderboard() {
             transitionTo(resultsScreen, 'zoom-out', 'slide-in');
             resultsList.innerHTML = '';
-
-            const sortedScores = Object.entries(finalScores)
-                .map(([index, points]) => ({ index: parseInt(index), points }))
-                .sort((a, b) => b.points - a.points);
             
-            sortedScores.forEach((score, rank) => {
+            const combinedScoresForSorting = Object.entries(finalScores).map(([index, points]) => {
+                const tiePoints = tiebreakerPoints[index] || 0;
+                return { index: parseInt(index), points, tiePoints, total: points + tiePoints };
+            }).sort((a, b) => b.total - a.total);
+
+            combinedScoresForSorting.forEach((score, rank) => {
                 const resultItem = document.createElement('div');
                 resultItem.classList.add('result-item');
+                
+                let scoreHtml = `<span class="result-score">${score.points} Points</span>`;
+                if (score.tiePoints > 0) {
+                    scoreHtml = `<span class="result-score">${score.points} Points <span class="tiebreaker-points">(+${score.tiePoints} Tiebreaker)</span></span>`;
+                }
+
                 resultItem.innerHTML = `
                     <span class="result-rank">#${rank + 1}</span>
                     <img src="${images[score.index]}" class="result-image" alt="Movie">
                     <span class="result-title">Movie ${score.index + 1}</span>
-                    <span class="result-score">${score.points} Points</span>
+                    ${scoreHtml}
                 `;
                 resultsList.appendChild(resultItem);
             });
         }
         
+        function startTiebreaker() {
+            transitionTo(tiebreakerScreen, 'zoom-out', 'zoom-in');
+            tiebreakerVoter = 1;
+            tiebreakerPoints = {}; // Reset points for the new round
+            tiedMovies.forEach(movie => tiebreakerPoints[movie.index] = 0);
+            setupTiebreakerTurn();
+        }
+
+        function setupTiebreakerTurn() {
+            tiebreakerVoterDisplay.textContent = `Player ${tiebreakerVoter}'s Turn`;
+            tiebreakerOptionsContainer.innerHTML = '';
+            
+            tiedMovies.forEach((movie, displayIndex) => {
+                const option = document.createElement('div');
+                option.classList.add('movie-option');
+                option.dataset.index = movie.index;
+                option.innerHTML = `
+                    <img src="${images[movie.index]}" alt="Option ${movie.index + 1}">
+                     <div class="option-number">${displayIndex + 1}</div>
+                `;
+
+                option.addEventListener('click', () => handleTiebreakerVote(movie.index));
+                tiebreakerOptionsContainer.appendChild(option);
+                setTimeout(() => option.classList.add('show'), displayIndex * 150);
+            });
+        }
+        
+        function handleTiebreakerVote(movieIndex) {
+            if (tiebreakerOptionsContainer.querySelector('.voted-on')) return;
+
+            tiebreakerPoints[movieIndex]++;
+            
+            const card = tiebreakerOptionsContainer.querySelector(`.movie-option[data-index='${movieIndex}']`);
+            card.classList.add('voted-on');
+            
+            tiebreakerVoter++;
+            setTimeout(() => {
+                if (tiebreakerVoter > totalPlayers) {
+                    endTiebreaker();
+                } else {
+                    tiebreakerOptionsContainer.querySelectorAll('.movie-option').forEach(opt => {
+                        opt.classList.remove('show');
+                    });
+                    setTimeout(setupTiebreakerTurn, 600);
+                }
+            }, 1000);
+        }
+        
+        function endTiebreaker() {
+            let finalWinnerIndex;
+            let maxTotal = -1;
+
+            tiedMovies.forEach(movie => {
+                const totalScore = finalScores[movie.index] + tiebreakerPoints[movie.index];
+                if(totalScore > maxTotal) {
+                    maxTotal = totalScore;
+                }
+            });
+
+            const tiebreakerWinners = tiedMovies.filter(movie => (finalScores[movie.index] + tiebreakerPoints[movie.index]) === maxTotal);
+
+            finalWinnerIndex = tiebreakerWinners[0].index;
+            
+            showWinner(finalWinnerIndex, true); 
+        }
+
         function createConfetti() {
             const colors = ['#ff4d7d', '#4d9eff', '#9d4dff', '#4dffb5', '#ffd24d'];
             for (let i = 0; i < 150; i++) {
@@ -1050,6 +1219,8 @@
             votes = [];
             finalScores = {};
             selectedPlayerCount = 0;
+            tiedMovies = [];
+            tiebreakerPoints = {};
 
             // Reset UI
             continueBtn.classList.add('disabled');
@@ -1059,9 +1230,13 @@
             searchResultsContainer.innerHTML = '';
             searchInput.value = '';
             previewTitle.style.display = 'none';
+            winnerContainer.classList.remove('show');
             
             transitionTo(setupScreen, 'slide-out', 'slide-in');
         });
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
