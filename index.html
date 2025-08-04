@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Movie Voting Elite ✨</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #ff4d7d;
+            --secondary: #4d9eff;
+            --accent: #9d4dff;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4dffb5;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: var(--light);
+            min-height: 100vh;
+            overflow: hidden; /* Prevent scrollbars during transitions */
+        }
+        
+        /* Glow Effect */
+        .glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px var(--primary), 0 0 20px var(--primary);
+            }
+            to {
+                text-shadow: 0 0 10px #fff, 0 0 20px #ff4d7d, 0 0 30px var(--primary), 0 0 40px var(--primary);
+            }
+        }
+        
+        /* Screens & Transitions */
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+        }
+        
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+            visibility: visible;
+            z-index: 10;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(-100%); opacity: 0; }
+        }
+        @keyframes zoomIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes zoomOut {
+            from { transform: scale(1); opacity: 1; }
+            to { transform: scale(1.2); opacity: 0; }
+        }
+
+        .slide-in { animation: slideIn 0.7s cubic-bezier(0.3, 1, 0.5, 1) forwards; }
+        .slide-out { animation: slideOut 0.7s cubic-bezier(0.5, 0, 0.7, 0) forwards; }
+        .zoom-in { animation: zoomIn 0.6s cubic-bezier(0.3, 1, 0.5, 1) forwards; }
+        .zoom-out { animation: zoomOut 0.6s cubic-bezier(0.5, 0, 0.7, 0) forwards; }
+
+        
+        /* Headings */
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            background-size: 300% 300%;
+            animation: gradientShift 8s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Player Selection */
+        .player-options {
+            display: flex;
+            gap: 1.5rem;
+            margin: 3rem 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .player-option {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 800;
+            cursor: pointer;
+            background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+            transform: scale(0.8) rotate(-10deg);
+        }
+        
+        .player-option:nth-child(1) { animation-delay: 0.1s; }
+        .player-option:nth-child(2) { animation-delay: 0.2s; }
+        .player-option:nth-child(3) { animation-delay: 0.3s; }
+        .player-option:nth-child(4) { animation-delay: 0.4s; }
+        .player-option:nth-child(5) { animation-delay: 0.5s; }
+        
+        .player-option.show {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+        
+        .player-option:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 40px rgba(157, 77, 255, 0.4);
+        }
+        
+        .player-option.selected {
+            background: linear-gradient(145deg, var(--accent), var(--primary));
+            transform: scale(1.1);
+            box-shadow: 0 0 0 5px rgba(157, 77, 255, 0.3), 0 15px 45px rgba(157, 77, 255, 0.4);
+        }
+        
+        /* URL Input */
+        .url-input-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 1rem 0;
+        }
+        
+        .url-input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        
+        .url-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+        
+        .add-url-btn {
+            background: linear-gradient(45deg, var(--secondary), var(--accent));
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .add-url-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(77, 158, 255, 0.4);
+        }
+        
+        /* Image Preview */
+        #image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            width: 100%;
+        }
+        
+        .preview-image {
+            width: 150px;
+            height: 225px;
+            object-fit: cover;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+            transform: scale(0.8) rotate(-5deg);
+        }
+        
+        .preview-image.show {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+        
+        .preview-image:hover {
+            transform: scale(1.05) rotate(1deg);
+            box-shadow: 0 15px 30px rgba(255, 77, 125, 0.4);
+            z-index: 2;
+        }
+        
+        /* Voting Screen */
+        .current-voter {
+            font-size: 2rem;
+            margin: 1rem 0;
+            color: var(--success);
+            text-shadow: 0 0 10px rgba(77, 255, 181, 0.5);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .movie-options {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin: 3rem 0;
+            perspective: 1000px;
+        }
+        
+        .movie-option {
+            width: 200px;
+            height: 300px;
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            transform-style: preserve-3d;
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+            transform: translateY(30px) rotateX(20deg);
+            border: 3px solid transparent;
+        }
+        
+        .movie-option.show {
+            opacity: 1;
+            transform: translateY(0) rotateX(0);
+        }
+        
+        .movie-option img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .option-number {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 5;
+        }
+        
+        .movie-option:hover {
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 25px 50px rgba(157, 77, 255, 0.5);
+        }
+
+        .movie-option.selected-for-voting {
+            border-color: var(--success);
+            transform: scale(1.05);
+            box-shadow: 0 0 25px var(--success);
+        }
+        
+        .movie-option.voted-on {
+            opacity: 0.6;
+            filter: grayscale(80%);
+        }
+
+        /* Point Selection Overlay */
+        #point-selection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        #point-selection-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .point-choice {
+            width: 50%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20vw;
+            font-weight: 800;
+            color: white;
+            transition: all 0.3s ease;
+            opacity: 1;
+        }
+        .point-choice.hidden {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+        #point-choice-1 {
+            background: linear-gradient(135deg, var(--secondary), var(--accent));
+        }
+        #point-choice-2 {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+        }
+        
+        /* Buttons */
+        .btn {
+            position: relative;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 1rem;
+            box-shadow: 0 10px 20px rgba(157, 77, 255, 0.3);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, var(--accent), var(--primary));
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(157, 77, 255, 0.5);
+        }
+        
+        .btn:hover::before {
+            opacity: 1;
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        /* Winner Screen */
+        .winner-image-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 2rem 0;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.55);
+        }
+        
+        .winner-image-container.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        .winner-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .winner-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+            padding: 2rem 1rem 1rem;
+            text-align: center;
+        }
+        
+        .winner-title {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--light);
+        }
+
+        /* NEW: Results/Leaderboard Screen */
+        #results-list {
+            width: 100%;
+            max-width: 800px;
+            margin-top: 2rem;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transform: translateX(-20px);
+            animation: slideInResult 0.5s forwards;
+        }
+
+        .result-item:nth-child(1) { border-left: 5px solid #FFD700; animation-delay: 0.2s;}
+        .result-item:nth-child(2) { border-left: 5px solid #C0C0C0; animation-delay: 0.4s;}
+        .result-item:nth-child(3) { border-left: 5px solid #CD7F32; animation-delay: 0.6s;}
+        .result-item:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)) { animation-delay: 0.8s; }
+
+        @keyframes slideInResult {
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .result-rank {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-right: 1.5rem;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .result-image {
+            width: 60px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-right: 1.5rem;
+        }
+        .result-title {
+            flex-grow: 1;
+            font-size: 1.2rem;
+        }
+        .result-score {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--success);
+        }
+        
+        /* Confetti */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background-color: var(--primary);
+            opacity: 0;
+            z-index: 1000;
+            animation: confetti-fall 5s linear forwards;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-100px) rotate(0deg) translateX(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg) translateX(calc(var(--random-x) * 100px));
+                opacity: 0;
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .player-option {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+            }
+            
+            .movie-option {
+                width: 150px;
+                height: 225px;
+            }
+
+            .point-choice {
+                font-size: 30vw;
+            }
+
+            .result-item {
+                flex-direction: column;
+                text-align: center;
+            }
+            .result-image { margin: 0 0 1rem 0; }
+            .result-title { margin-bottom: 0.5rem; }
+            .result-rank { margin: 0 0 1rem 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="screen active" id="setup-screen">
+        <h1 class="glow">How Many Players?</h1>
+        <div class="player-options">
+            <div class="player-option" data-count="2">2</div>
+            <div class="player-option" data-count="3">3</div>
+            <div class="player-option" data-count="4">4</div>
+            <div class="player-option" data-count="5">5</div>
+            <div class="player-option" data-count="6">6</div>
+        </div>
+        <button class="btn disabled" id="continue-btn">Continue <i class="fas fa-arrow-right"></i></button>
+    </div>
+    
+    <div class="screen" id="url-screen">
+        <h1>Add Movie Options</h1>
+        <div class="url-input-container">
+            <input type="text" class="url-input" id="url-input" placeholder="Paste image URL here">
+            <button class="add-url-btn" id="add-url-btn">Add URL</button>
+        </div>
+        
+        <div id="image-preview"></div>
+        <button class="btn" id="done-btn" style="display: none;"><i class="fas fa-check"></i> Done</button>
+    </div>
+    
+    <div class="screen" id="voting-screen">
+        <h1>Cast Your Vote</h1>
+        <div class="current-voter">Player 1's Turn</div>
+        <p>Use number keys to select a movie</p>
+        <div class="movie-options" id="movie-options-container"></div>
+        <div id="voting-progress" style="color: rgba(255,255,255,0.7);">0 of 0 votes</div>
+    </div>
+    
+    <div id="point-selection-overlay">
+        <div class="point-choice" id="point-choice-1">1</div>
+        <div class="point-choice" id="point-choice-2">2</div>
+    </div>
+
+    <div class="screen" id="winner-screen">
+        <h1>And The Winner Is...</h1>
+        <div class="winner-image-container" id="winner-container">
+            <img class="winner-image" id="winner-image" src="" alt="Winner">
+            <div class="winner-overlay">
+                <div class="winner-title">Congratulations!</div>
+                <p>This movie won the vote!</p>
+            </div>
+        </div>
+        <button class="btn" id="view-leaderboard-btn"><i class="fas fa-trophy"></i> View Leaderboard</button>
+    </div>
+
+    <div class="screen" id="results-screen">
+        <h1>Final Results</h1>
+        <div id="results-list"></div>
+        <button class="btn" id="restart-btn"><i class="fas fa-redo"></i> Play Again</button>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const screens = document.querySelectorAll('.screen');
+        const setupScreen = document.getElementById('setup-screen');
+        const urlScreen = document.getElementById('url-screen');
+        const votingScreen = document.getElementById('voting-screen');
+        const winnerScreen = document.getElementById('winner-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const imagePreview = document.getElementById('image-preview');
+        const movieOptionsContainer = document.getElementById('movie-options-container');
+        const winnerImage = document.getElementById('winner-image');
+        const winnerContainer = document.getElementById('winner-container');
+        const resultsList = document.getElementById('results-list');
+        const continueBtn = document.getElementById('continue-btn');
+        const doneBtn = document.getElementById('done-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const viewLeaderboardBtn = document.getElementById('view-leaderboard-btn');
+        const currentVoterDisplay = document.querySelector('.current-voter');
+        const votingProgressDisplay = document.getElementById('voting-progress');
+        const urlInput = document.getElementById('url-input');
+        const addUrlBtn = document.getElementById('add-url-btn');
+        const pointSelectionOverlay = document.getElementById('point-selection-overlay');
+        
+        // State
+        let images = [];
+        let votes = [];
+        let finalScores = {};
+        let currentPlayer = 1;
+        let totalPlayers = 0;
+        let selectedPlayerCount = 0;
+        
+        // Voting-specific state
+        let votingPhase = 'selecting_movie'; // 'selecting_movie' or 'selecting_points'
+        let selectedMovieForVoting = null;
+        let pointsAllocatedThisTurn = [];
+
+        // --- NEW: Screen Transition Function ---
+        function transitionTo(toScreen, animationOut = 'slide-out', animationIn = 'slide-in') {
+            const fromScreen = document.querySelector('.screen.active');
+
+            if (fromScreen) {
+                fromScreen.classList.add(animationOut);
+                fromScreen.addEventListener('animationend', () => {
+                    fromScreen.classList.remove('active', animationOut);
+                }, { once: true });
+            }
+
+            toScreen.classList.add('active', animationIn);
+            toScreen.addEventListener('animationend', () => {
+                toScreen.classList.remove(animationIn);
+            }, { once: true });
+        }
+
+
+        // Initialize animations
+        document.addEventListener('DOMContentLoaded', () => {
+            const playerOptions = document.querySelectorAll('.player-option');
+            playerOptions.forEach((option, index) => {
+                setTimeout(() => {
+                    option.classList.add('show');
+                }, index * 100);
+            });
+        });
+        
+        // Player count selection
+        document.querySelectorAll('.player-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.player-option').forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedPlayerCount = parseInt(option.dataset.count);
+                continueBtn.classList.remove('disabled');
+                option.style.animation = 'pulse 0.5s ease';
+                setTimeout(() => { option.style.animation = ''; }, 500);
+            });
+        });
+        
+        // Continue to URL screen
+        continueBtn.addEventListener('click', () => {
+            if (selectedPlayerCount > 0) {
+                totalPlayers = selectedPlayerCount;
+                transitionTo(urlScreen);
+            }
+        });
+        
+        // Add image logic
+        addUrlBtn.addEventListener('click', addImageFromUrl);
+        urlInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addImageFromUrl(); });
+        
+        function addImageFromUrl() {
+            const url = urlInput.value.trim();
+            if (!url) return;
+            if (!isValidUrl(url)) {
+                alert('Please enter a valid image URL');
+                return;
+            }
+            const img = new Image();
+            img.onload = () => {
+                images.push(url);
+                updateImagePreview();
+                urlInput.value = '';
+            };
+            img.onerror = () => alert('Could not load image from this URL.');
+            img.src = url;
+        }
+        
+        function isValidUrl(string) {
+            try { new URL(string); return true; } catch (_) { return false; }
+        }
+        
+        function updateImagePreview() {
+            imagePreview.innerHTML = '';
+            images.forEach((img, index) => {
+                const imgElement = document.createElement('img');
+                imgElement.src = img;
+                imgElement.classList.add('preview-image');
+                imgElement.alt = `Option ${index + 1}`;
+                imagePreview.appendChild(imgElement);
+                setTimeout(() => imgElement.classList.add('show'), index * 100);
+            });
+            
+            if (images.length >= 2) {
+                doneBtn.style.display = 'block';
+            } else {
+                doneBtn.style.display = 'none';
+            }
+        }
+        
+        // Done button handler
+        doneBtn.addEventListener('click', startVoting);
+        
+        function startVoting() {
+            transitionTo(votingScreen, 'zoom-out', 'zoom-in');
+            
+            currentPlayer = 1;
+            votes = [];
+            
+            setupNewTurn();
+            document.addEventListener('keydown', handleVotingKeyDown);
+        }
+        
+        function setupNewTurn() {
+            votingPhase = 'selecting_movie';
+            selectedMovieForVoting = null;
+            pointsAllocatedThisTurn = [];
+            pointSelectionOverlay.classList.remove('visible');
+            currentVoterDisplay.textContent = `Player ${currentPlayer}'s Turn`;
+            votingProgressDisplay.textContent = `${currentPlayer - 1} of ${totalPlayers} votes`;
+
+            movieOptionsContainer.innerHTML = '';
+            images.forEach((img, index) => {
+                const option = document.createElement('div');
+                option.classList.add('movie-option');
+                option.dataset.index = index;
+                option.innerHTML = `
+                    <img src="${img}" alt="Option ${index + 1}" onerror="this.src='https://via.placeholder.com/200x300?text=Image+Error'">
+                    <div class="option-number">${index + 1}</div>
+                `;
+                movieOptionsContainer.appendChild(option);
+                setTimeout(() => option.classList.add('show'), index * 150);
+            });
+        }
+
+        function handleVotingKeyDown(e) {
+            const key = e.key;
+            
+            if (votingPhase === 'selecting_movie') {
+                const movieIndex = parseInt(key) - 1;
+                if (!isNaN(movieIndex) && movieIndex >= 0 && movieIndex < images.length) {
+                    const movieCard = document.querySelector(`.movie-option[data-index='${movieIndex}']`);
+                    if (movieCard && !movieCard.classList.contains('voted-on')) {
+                        handleMovieSelection(movieIndex);
+                    }
+                }
+            } else if (votingPhase === 'selecting_points') {
+                const points = parseInt(key);
+                if ((points === 1 || points === 2) && !pointsAllocatedThisTurn.includes(points)) {
+                    handlePointSelection(points);
+                }
+            }
+        }
+        
+        function handleMovieSelection(movieIndex) {
+            selectedMovieForVoting = movieIndex;
+            const remainingPoints = [1, 2].filter(p => !pointsAllocatedThisTurn.includes(p));
+            
+            if (remainingPoints.length === 1) {
+                handlePointSelection(remainingPoints[0]);
+                return;
+            }
+
+            votingPhase = 'selecting_points';
+            document.querySelector(`.movie-option[data-index='${movieIndex}']`).classList.add('selected-for-voting');
+            document.getElementById('point-choice-1').classList.toggle('hidden', pointsAllocatedThisTurn.includes(1));
+            document.getElementById('point-choice-2').classList.toggle('hidden', pointsAllocatedThisTurn.includes(2));
+            pointSelectionOverlay.classList.add('visible');
+        }
+
+        function handlePointSelection(points) {
+            votes.push({ player: currentPlayer, movieIndex: selectedMovieForVoting, points: points });
+            pointsAllocatedThisTurn.push(points);
+            pointSelectionOverlay.classList.remove('visible');
+            const votedCard = document.querySelector(`.movie-option[data-index='${selectedMovieForVoting}']`);
+            votedCard.classList.remove('selected-for-voting');
+            votedCard.classList.add('voted-on');
+            selectedMovieForVoting = null;
+            votingPhase = 'selecting_movie';
+            
+            if (pointsAllocatedThisTurn.length === 2) {
+                setTimeout(advanceTurn, 500);
+            }
+        }
+
+        function advanceTurn() {
+            currentPlayer++;
+            if (currentPlayer > totalPlayers) {
+                document.removeEventListener('keydown', handleVotingKeyDown);
+                setTimeout(showWinner, 500);
+            } else {
+                setupNewTurn();
+            }
+        }
+        
+        function showWinner() {
+            transitionTo(winnerScreen, 'zoom-out', 'zoom-in');
+            
+            finalScores = {};
+            images.forEach((_, index) => { finalScores[index] = 0; });
+            votes.forEach(vote => { finalScores[vote.movieIndex] += vote.points; });
+            
+            let winnerIndex = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
+            
+            winnerImage.src = images[winnerIndex];
+            
+            setTimeout(() => {
+                winnerContainer.classList.add('show');
+                createConfetti();
+            }, 500);
+        }
+
+        viewLeaderboardBtn.addEventListener('click', displayLeaderboard);
+
+        function displayLeaderboard() {
+            transitionTo(resultsScreen, 'zoom-out', 'slide-in');
+            resultsList.innerHTML = '';
+
+            const sortedScores = Object.entries(finalScores)
+                .map(([index, points]) => ({ index: parseInt(index), points }))
+                .sort((a, b) => b.points - a.points);
+            
+            sortedScores.forEach((score, rank) => {
+                const resultItem = document.createElement('div');
+                resultItem.classList.add('result-item');
+                resultItem.innerHTML = `
+                    <span class="result-rank">#${rank + 1}</span>
+                    <img src="${images[score.index]}" class="result-image" alt="Movie">
+                    <span class="result-title">Movie ${score.index + 1}</span>
+                    <span class="result-score">${score.points} Points</span>
+                `;
+                resultsList.appendChild(resultItem);
+            });
+        }
+        
+        function createConfetti() {
+            const colors = ['#ff4d7d', '#4d9eff', '#9d4dff', '#4dffb5', '#ffd24d'];
+            for (let i = 0; i < 150; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = '-10px';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.width = Math.random() * 12 + 6 + 'px';
+                confetti.style.height = Math.random() * 12 + 6 + 'px';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confetti.style.setProperty('--random-x', Math.random() > 0.5 ? 1 : -1);
+                const duration = Math.random() * 3 + 2;
+                confetti.style.animationDuration = `${duration}s`;
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), duration * 1000);
+            }
+        }
+        
+        restartBtn.addEventListener('click', () => {
+            transitionTo(setupScreen, 'slide-out', 'slide-in');
+            
+            // Reset state
+            images = [];
+            selectedPlayerCount = 0;
+            continueBtn.classList.add('disabled');
+            document.querySelectorAll('.player-option').forEach(opt => opt.classList.remove('selected'));
+            imagePreview.innerHTML = '';
+            doneBtn.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
